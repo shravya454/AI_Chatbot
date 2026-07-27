@@ -47,13 +47,13 @@ const SettingsModal = ({ visible, onClose, apiKey, onSaveApiKey, theme }) => {
               <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>Gemini API Key</Text>
             </View>
             <Text style={[styles.cardDescription, { color: theme.textSecondary }]}>
-              Enter your Google AI Studio Gemini API Key below. If left blank, the app will attempt to use the default server environment key.
+              Enter your Google AI Studio Gemini API Key below. If left blank, the app will run in Demo Mode so you can test all features without requiring an API key.
             </Text>
 
             <View style={[styles.inputWrapper, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
               <TextInput
                 style={[styles.keyInput, { color: theme.textPrimary }]}
-                placeholder="AIzaSy..."
+                placeholder="AIzaSy... (Optional for Demo)"
                 placeholderTextColor={theme.textMuted}
                 value={keyInput}
                 onChangeText={setKeyInput}
@@ -81,12 +81,14 @@ const SettingsModal = ({ visible, onClose, apiKey, onSaveApiKey, theme }) => {
           {/* Model info card */}
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.cardHeader}>
-              <Ionicons name="cpu-outline" size={20} color={theme.accent} />
-              <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>AI Model</Text>
+              <Ionicons name="hardware-chip-outline" size={20} color={theme.accent} />
+              <Text style={[styles.cardTitle, { color: theme.textPrimary }]}>AI Engine Status</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Default Engine</Text>
-              <Text style={[styles.infoValue, { color: theme.primary }]}>Gemini 2.5 Flash</Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Current Mode</Text>
+              <Text style={[styles.infoValue, { color: apiKey ? theme.success : theme.primary }]}>
+                {apiKey ? 'Live Gemini 2.5 API' : 'Built-in Demo Mode'}
+              </Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Provider</Text>

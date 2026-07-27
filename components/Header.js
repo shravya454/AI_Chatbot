@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react
 import { Ionicons } from '@expo/vector-icons';
 
 const Header = ({
-  title = 'Gemini AI Assistant',
+  title = 'NextChat',
+  onOpenSidebar,
+  onNewChat,
   isDarkMode,
   onToggleDarkMode,
   onOpenSearch,
@@ -12,42 +14,45 @@ const Header = ({
   onClearHistory,
   theme,
 }) => {
-  const handleConfirmClear = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to clear all chat history? This action cannot be undone.')) {
-        onClearHistory();
-      }
-    } else {
-      Alert.alert(
-        'Clear Chat History',
-        'Are you sure you want to delete all messages? This action cannot be undone.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear All', style: 'destructive', onPress: onClearHistory },
-        ]
-      );
-    }
+  const handleDirectClear = () => {
+    onClearHistory();
   };
 
   return (
     <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
-      {/* Title & Avatar Info */}
+      {/* Sidebar Toggle & App Title */}
       <View style={styles.leftSection}>
-        <View style={[styles.avatarContainer, { backgroundColor: theme.primaryLight }]}>
-          <Ionicons name="sparkles" size={20} color={theme.primary} />
-          <View style={[styles.onlineIndicator, { backgroundColor: theme.success }]} />
-        </View>
+        <TouchableOpacity
+          onPress={onOpenSidebar}
+          style={styles.menuBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="menu-outline" size={24} color={theme.textPrimary} />
+        </TouchableOpacity>
 
-        <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: theme.textPrimary }]}>{title}</Text>
+        <TouchableOpacity onPress={onOpenSidebar} style={styles.titleContainer} activeOpacity={0.8}>
+          <Text style={[styles.title, { color: theme.textPrimary }]} numberOfLines={1}>
+            {title}
+          </Text>
           <View style={styles.statusRow}>
-            <Text style={[styles.statusText, { color: theme.textSecondary }]}>Online • Gemini 2.5</Text>
+            <View style={[styles.dot, { backgroundColor: theme.success }]} />
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>Gemini 2.5</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
+      {/* Header Action Buttons */}
       <View style={styles.rightSection}>
+        <TouchableOpacity
+          onPress={onNewChat}
+          style={[styles.newChatHeaderBtn, { backgroundColor: theme.primaryLight }]}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="add" size={20} color={theme.primary} />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onOpenSearch}
           style={styles.iconBtn}
@@ -87,15 +92,6 @@ const Header = ({
         >
           <Ionicons name="settings-outline" size={20} color={theme.textPrimary} />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleConfirmClear}
-          style={styles.iconBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="trash-outline" size={20} color={theme.error} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -118,27 +114,15 @@ const styles = StyleSheet.create({
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
   },
-  avatarContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  onlineIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+  menuBtn: {
+    padding: 6,
+    marginRight: 8,
   },
   titleContainer: {
-    marginLeft: 12,
+    flex: 1,
   },
   title: {
     fontSize: 16,
@@ -147,6 +131,12 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
     fontSize: 11,
@@ -155,7 +145,15 @@ const styles = StyleSheet.create({
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  newChatHeaderBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
   },
   iconBtn: {
     padding: 4,

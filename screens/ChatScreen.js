@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
 import ChatBubble from '../components/ChatBubble';
 import ChatInput from '../components/ChatInput';
 import LoadingIndicator from '../components/LoadingIndicator';
@@ -25,50 +26,77 @@ import { LIGHT_THEME, DARK_THEME } from '../utils/constants';
 import { generateId, generateChatExportText } from '../utils/formatters';
 import { sendMessageToGemini } from '../services/geminiApi';
 import {
-  loadChatHistory,
-  saveChatHistory,
-  clearChatHistoryStorage,
+  loadAllSessions,
+  saveAllSessions,
+  loadActiveSessionId,
+  saveActiveSessionId,
+  clearAllSessionsStorage,
   loadSettings,
   saveSettings,
 } from '../storage/storage';
 
 const ChatScreen = () => {
-  const [messages, setMessages] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
-  
+
   // Modals
+  const [sidebarVisible, setSidebarVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   const flatListRef = useRef(null);
   const theme = isDarkMode ? DARK_THEME : LIGHT_THEME;
 
-  // Initial Load: AsyncStorage History & Settings
+  // Active Session Object & Message list
+  const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
+  const messages = activeSession ? activeSession.messages : [];
+
+  // Initial Load from Storage
   useEffect(() => {
     const initApp = async () => {
-      const savedMessages = await loadChatHistory();
+      const loadedSessions = await loadAllSessions();
+      const savedActiveId = await loadActiveSessionId();
       const savedSettings = await loadSettings();
 
-      if (savedMessages && savedMessages.length > 0) {
-        setMessages(savedMessages);
-      }
       if (savedSettings) {
         setIsDarkMode(savedSettings.isDarkMode || false);
         setApiKey(savedSettings.apiKey || '');
+      }
+
+      if (loadedSessions && loadedSessions.length > 0) {
+        setSessions(loadedSessions);
+        if (savedActiveId && loadedSessions.some((s) => s.id === savedActiveId)) {
+          setActiveSessionId(savedActiveId);
+        } else {
+          setActiveSessionId(loadedSessions[0].id);
+        }
+      } else {
+        // Create initial default session
+        const initialSession = {
+          id: generateId(),
+          title: 'New Chat',
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        setSessions([initialSession]);
+        setActiveSessionId(initialSession.id);
+        saveAllSessions([initialSession]);
+        saveActiveSessionId(initialSession.id);
       }
     };
     initApp();
   }, []);
 
-  // Save messages whenever updated
-  useEffect(() => {
-    if (messages.length > 0) {
-      saveChatHistory(messages);
-    }
-  }, [messages]);
+  // Save sessions whenever updated
+  const updateSessionsState = (newSessions) => {
+    setSessions(newSessions);
+    saveAllSessions(newSessions);
+  };
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
@@ -79,7 +107,73 @@ const ChatScreen = () => {
     }, 100);
   };
 
-  // Toggle Theme
+  // Create a New Chat Thread
+  const handleNewChat = () => {
+    const newSession = {
+      id: generateId(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const updated = [newSession, ...sessions];
+    updateSessionsState(updated);
+    setActiveSessionId(newSession.id);
+    saveActiveSessionId(newSession.id);
+    setErrorMessage(null);
+  };
+
+  // Select Session from Sidebar
+  const handleSelectSession = (sessionId) => {
+    setActiveSessionId(sessionId);
+    saveActiveSessionId(sessionId);
+    setErrorMessage(null);
+  };
+
+  // Rename Session Title
+  const handleRenameSession = (sessionId, newTitle) => {
+    const updated = sessions.map((s) =>
+      s.id === sessionId ? { ...s, title: newTitle, updatedAt: Date.now() } : s
+    );
+    updateSessionsState(updated);
+  };
+
+  // Delete Session
+  const handleDeleteSession = (sessionId) => {
+    const remaining = sessions.filter((s) => s.id !== sessionId);
+
+    if (remaining.length === 0) {
+      // Create fresh blank session if all deleted
+      const freshSession = {
+        id: generateId(),
+        title: 'New Chat',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      updateSessionsState([freshSession]);
+      setActiveSessionId(freshSession.id);
+      saveActiveSessionId(freshSession.id);
+    } else {
+      updateSessionsState(remaining);
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(remaining[0].id);
+        saveActiveSessionId(remaining[0].id);
+      }
+    }
+  };
+
+  // Clear Current Chat History
+  const handleClearHistory = () => {
+    if (!activeSessionId) return;
+    const updated = sessions.map((s) =>
+      s.id === activeSessionId ? { ...s, messages: [], updatedAt: Date.now() } : s
+    );
+    updateSessionsState(updated);
+  };
+
+  // Toggle Dark Mode
   const handleToggleDarkMode = async () => {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
@@ -93,15 +187,9 @@ const ChatScreen = () => {
     setErrorMessage(null);
   };
 
-  // Clear History
-  const handleClearHistory = async () => {
-    setMessages([]);
-    await clearChatHistoryStorage();
-  };
-
-  // Send Message Logic
+  // Send Message
   const handleSendMessage = async (userText) => {
-    if (!userText.trim() || isLoading) return;
+    if (!userText.trim() || isLoading || !activeSessionId) return;
 
     setErrorMessage(null);
     const userMsg = {
@@ -111,14 +199,33 @@ const ChatScreen = () => {
       timestamp: Date.now(),
     };
 
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    // Auto-generate title for "New Chat" from first message
+    let sessionTitle = activeSession?.title || 'New Chat';
+    if (messages.length === 0 || sessionTitle === 'New Chat') {
+      sessionTitle = userText.length > 28 ? userText.substring(0, 28) + '...' : userText;
+    }
+
+    const currentMessages = [...messages, userMsg];
+    
+    // Update local state immediately
+    const updatedSessions = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        return {
+          ...s,
+          title: sessionTitle,
+          messages: currentMessages,
+          updatedAt: Date.now(),
+        };
+      }
+      return s;
+    });
+
+    updateSessionsState(updatedSessions);
     setIsLoading(true);
     scrollToBottom();
 
     try {
-      // Send conversation context to Gemini API
-      const aiResponseText = await sendMessageToGemini(updatedMessages, apiKey);
+      const aiResponseText = await sendMessageToGemini(currentMessages, apiKey);
 
       const aiMsg = {
         id: generateId(),
@@ -127,7 +234,18 @@ const ChatScreen = () => {
         timestamp: Date.now(),
       };
 
-      setMessages((prev) => [...prev, aiMsg]);
+      const finalSessions = sessions.map((s) => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            messages: [...currentMessages, aiMsg],
+            updatedAt: Date.now(),
+          };
+        }
+        return s;
+      });
+
+      updateSessionsState(finalSessions);
     } catch (error) {
       console.error('Chat error:', error);
       setErrorMessage(error.message);
@@ -139,28 +257,46 @@ const ChatScreen = () => {
         timestamp: Date.now(),
         isError: true,
       };
-      setMessages((prev) => [...prev, errorMsg]);
+
+      const errorSessions = sessions.map((s) => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            messages: [...currentMessages, errorMsg],
+            updatedAt: Date.now(),
+          };
+        }
+        return s;
+      });
+
+      updateSessionsState(errorSessions);
     } finally {
       setIsLoading(false);
       scrollToBottom();
     }
   };
 
-  // Regenerate Response for last user message
+  // Regenerate Response
   const handleRegenerate = async () => {
-    if (isLoading) return;
+    if (isLoading || messages.length === 0) return;
 
-    // Find the last user message
     const lastUserMsgIdx = [...messages].reverse().findIndex((m) => m.sender === 'user');
     if (lastUserMsgIdx === -1) return;
 
     const actualIdx = messages.length - 1 - lastUserMsgIdx;
     const historyUpToUser = messages.slice(0, actualIdx + 1);
 
-    // Remove any trailing AI responses
-    setMessages(historyUpToUser);
     setIsLoading(true);
     setErrorMessage(null);
+
+    // Update state to remove trailing response
+    const updatedSessions = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        return { ...s, messages: historyUpToUser, updatedAt: Date.now() };
+      }
+      return s;
+    });
+    updateSessionsState(updatedSessions);
 
     try {
       const aiResponseText = await sendMessageToGemini(historyUpToUser, apiKey);
@@ -170,7 +306,14 @@ const ChatScreen = () => {
         text: aiResponseText,
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, aiMsg]);
+
+      const finalSessions = sessions.map((s) => {
+        if (s.id === activeSessionId) {
+          return { ...s, messages: [...historyUpToUser, aiMsg], updatedAt: Date.now() };
+        }
+        return s;
+      });
+      updateSessionsState(finalSessions);
     } catch (error) {
       setErrorMessage(error.message);
       const errorMsg = {
@@ -180,17 +323,24 @@ const ChatScreen = () => {
         timestamp: Date.now(),
         isError: true,
       };
-      setMessages((prev) => [...prev, errorMsg]);
+
+      const errorSessions = sessions.map((s) => {
+        if (s.id === activeSessionId) {
+          return { ...s, messages: [...historyUpToUser, errorMsg], updatedAt: Date.now() };
+        }
+        return s;
+      });
+      updateSessionsState(errorSessions);
     } finally {
       setIsLoading(false);
       scrollToBottom();
     }
   };
 
-  // Export Chat History as TXT File
+  // Export Chat
   const handleExportChat = async () => {
     if (messages.length === 0) {
-      Alert.alert('Export Chat', 'There are no messages in the chat history to export.');
+      Alert.alert('Export Chat', 'There are no messages in this conversation to export.');
       return;
     }
 
@@ -201,7 +351,7 @@ const ChatScreen = () => {
         const element = document.createElement('a');
         const file = new Blob([exportText], { type: 'text/plain' });
         element.href = URL.createObjectURL(file);
-        element.download = `AI_Chat_Export_${Date.now()}.txt`;
+        element.download = `${activeSession?.title || 'NextChat'}_Export_${Date.now()}.txt`;
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
@@ -209,11 +359,10 @@ const ChatScreen = () => {
         console.error('Web export failed:', e);
       }
     } else {
-      // Mobile native fallback (using expo-file-system / expo-sharing)
       try {
         const FileSystem = require('expo-file-system');
         const Sharing = require('expo-sharing');
-        const fileUri = `${FileSystem.documentDirectory}AI_Chat_Export_${Date.now()}.txt`;
+        const fileUri = `${FileSystem.documentDirectory}NextChat_Export_${Date.now()}.txt`;
 
         await FileSystem.writeAsStringAsync(fileUri, exportText);
         if (await Sharing.isAvailableAsync()) {
@@ -228,16 +377,17 @@ const ChatScreen = () => {
     }
   };
 
-  // Determine last AI message ID for regenerate button
   const lastAiMessageId = [...messages].reverse().find((m) => m.sender === 'ai' && !m.isError)?.id;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={theme.surface} />
 
-      {/* Header Bar */}
+      {/* App Header */}
       <Header
-        title="Gemini AI Assistant"
+        title={activeSession?.title || 'NextChat'}
+        onOpenSidebar={() => setSidebarVisible(true)}
+        onNewChat={handleNewChat}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
         onOpenSearch={() => setSearchModalVisible(true)}
@@ -247,7 +397,7 @@ const ChatScreen = () => {
         theme={theme}
       />
 
-      {/* Global Error Banner */}
+      {/* Error Banner */}
       {errorMessage && (
         <View style={[styles.errorBanner, { backgroundColor: theme.error + '20', borderColor: theme.error }]}>
           <Ionicons name="warning" size={18} color={theme.error} />
@@ -258,7 +408,7 @@ const ChatScreen = () => {
         </View>
       )}
 
-      {/* Chat Messages Container */}
+      {/* Main Chat Area */}
       <KeyboardAvoidingView
         style={styles.flexOne}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -287,10 +437,10 @@ const ChatScreen = () => {
                   <Ionicons name="sparkles" size={36} color={theme.primary} />
                 </View>
                 <Text style={[styles.welcomeTitle, { color: theme.textPrimary }]}>
-                  Welcome to Mobile AI Chatbot!
+                  NextChat AI Assistant
                 </Text>
                 <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
-                  Powered by Google Gemini 2.5. Ask any question, draft code, or brainstorm ideas.
+                  What can I help you with today? Choose a prompt or type your question below.
                 </Text>
 
                 <SuggestedPrompts onSelectPrompt={handleSendMessage} theme={theme} />
@@ -300,11 +450,27 @@ const ChatScreen = () => {
           ListFooterComponent={isLoading ? <LoadingIndicator theme={theme} /> : null}
         />
 
-        {/* Input Bar */}
+        {/* Bottom Input Field */}
         <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} theme={theme} />
       </KeyboardAvoidingView>
 
-      {/* Modals */}
+      {/* Sidebar Drawer */}
+      <Sidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={handleSelectSession}
+        onNewChat={handleNewChat}
+        onRenameSession={handleRenameSession}
+        onDeleteSession={handleDeleteSession}
+        onOpenSettings={() => setSettingsModalVisible(true)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        theme={theme}
+      />
+
+      {/* Search Modal */}
       <SearchModal
         visible={searchModalVisible}
         onClose={() => setSearchModalVisible(false)}
@@ -312,6 +478,7 @@ const ChatScreen = () => {
         theme={theme}
       />
 
+      {/* Settings Modal */}
       <SettingsModal
         visible={settingsModalVisible}
         onClose={() => setSettingsModalVisible(false)}
@@ -362,10 +529,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   welcomeTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
   welcomeSubtitle: {
     fontSize: 14,
