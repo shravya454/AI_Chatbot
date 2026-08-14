@@ -133,7 +133,13 @@ npx expo start
 
 ---
 
-## License & Author
+## License
 
 Developed for Mobile AI Assistant Coding Challenge.
 Released under the MIT License.
+
+---
+
+## Author
+
+Shravya K V
