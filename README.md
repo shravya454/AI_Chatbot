@@ -6,7 +6,7 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 
 ## Project Links
 
-- **GitHub Repository**: https://github.com/<your-username>/<repo-name>  (replace with your repository URL)
+- **GitHub Repository**: https://github.com/shravya454/AI_Chatbot.git
 
 ## Features
 
@@ -95,7 +95,7 @@ AI_Chat/
 ### 1. Clone & Install Dependencies
 
 ```bash
-git clone https://github.com/<your-username>/<repo-name>.git
+git clone https://github.com/shravya454/AI_Chatbot.git
 cd AI_Chat
 npm install
 ```
