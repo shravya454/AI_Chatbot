@@ -47,12 +47,43 @@ export const DARK_THEME = {
 };
 
 export const DEFAULT_SUGGESTIONS = [
-  { id: '1', icon: 'sparkles', label: 'Explain Quantum Computing' },
-  { id: '2', icon: 'code-slash', label: 'Write a React Native Hook' },
-  { id: '3', icon: 'bulb', label: 'Brainstorm Startup Ideas' },
-  { id: '4', icon: 'fitness', label: 'Create a 7-day workout plan' },
-  { id: '5', icon: 'mail', label: 'Draft a polite follow-up email' },
+  {
+    id: '1',
+    icon: 'sparkles-outline',
+    title: 'Explain Quantum Computing',
+    subtitle: 'in simple, everyday terms',
+    prompt: 'Explain Quantum Computing in simple, easy-to-understand terms with a real-world analogy.',
+  },
+  {
+    id: '2',
+    icon: 'code-slash-outline',
+    title: 'Write a React Native Hook',
+    subtitle: 'for clean API data fetching',
+    prompt: 'Write an example custom React Native hook for API fetching with loading, error, and caching state.',
+  },
+  {
+    id: '3',
+    icon: 'bulb-outline',
+    title: 'Brainstorm Startup Ideas',
+    subtitle: 'innovative AI & mobile concepts',
+    prompt: 'Brainstorm 3 innovative AI mobile startup ideas for 2026 with target market and unique value proposition.',
+  },
+  {
+    id: '4',
+    icon: 'fitness-outline',
+    title: '7-Day Fitness Plan',
+    subtitle: 'balanced strength & core routine',
+    prompt: 'Create a balanced 7-day workout routine for strength, cardio, and flexibility.',
+  },
 ];
 
+
 export const MAX_INPUT_LENGTH = 1000;
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+
+export const AVAILABLE_MODELS = [
+  { id: 'gemini-flash-latest', name: 'Gemini Flash (Fast & Recommended)', desc: 'Ultra-fast, smart & responsive' },
+  { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', desc: 'Latest reasoning & hybrid capability' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', desc: 'Lightweight & high throughput' },
+];
+

@@ -71,15 +71,20 @@ export const clearAllSessionsStorage = async () => {
 };
 
 /**
- * Load user settings (API key, theme preference)
+ * Load user settings (API key, theme preference, selected model)
  */
 export const loadSettings = async () => {
   try {
     const jsonValue = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
-    return jsonValue != null ? JSON.parse(jsonValue) : { apiKey: '', isDarkMode: false };
+    const parsed = jsonValue != null ? JSON.parse(jsonValue) : {};
+    return {
+      apiKey: parsed.apiKey || '',
+      isDarkMode: parsed.isDarkMode || false,
+      selectedModel: parsed.selectedModel || 'gemini-flash-latest',
+    };
   } catch (error) {
     console.error('Error loading settings:', error);
-    return { apiKey: '', isDarkMode: false };
+    return { apiKey: '', isDarkMode: false, selectedModel: 'gemini-flash-latest' };
   }
 };
 
@@ -88,8 +93,11 @@ export const loadSettings = async () => {
  */
 export const saveSettings = async (settings) => {
   try {
-    const jsonValue = JSON.stringify(settings);
+    const current = await loadSettings();
+    const updated = { ...current, ...settings };
+    const jsonValue = JSON.stringify(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, jsonValue);
+    return updated;
   } catch (error) {
     console.error('Error saving settings:', error);
   }

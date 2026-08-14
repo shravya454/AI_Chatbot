@@ -5,13 +5,14 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StatusBar,
   Text,
   Alert,
   TouchableOpacity,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
@@ -22,7 +23,7 @@ import SuggestedPrompts from '../components/SuggestedPrompts';
 import SearchModal from '../components/SearchModal';
 import SettingsModal from '../components/SettingsModal';
 
-import { LIGHT_THEME, DARK_THEME } from '../utils/constants';
+import { LIGHT_THEME, DARK_THEME, DEFAULT_GEMINI_MODEL } from '../utils/constants';
 import { generateId, generateChatExportText } from '../utils/formatters';
 import { sendMessageToGemini } from '../services/geminiApi';
 import {
@@ -41,6 +42,7 @@ const ChatScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_GEMINI_MODEL);
   const [errorMessage, setErrorMessage] = useState(null);
 
   // Modals
@@ -48,6 +50,7 @@ const ChatScreen = () => {
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
+  const insets = useSafeAreaInsets();
   const flatListRef = useRef(null);
   const theme = isDarkMode ? DARK_THEME : LIGHT_THEME;
 
@@ -65,6 +68,7 @@ const ChatScreen = () => {
       if (savedSettings) {
         setIsDarkMode(savedSettings.isDarkMode || false);
         setApiKey(savedSettings.apiKey || '');
+        setSelectedModel(savedSettings.selectedModel || DEFAULT_GEMINI_MODEL);
       }
 
       if (loadedSessions && loadedSessions.length > 0) {
@@ -75,7 +79,6 @@ const ChatScreen = () => {
           setActiveSessionId(loadedSessions[0].id);
         }
       } else {
-        // Create initial default session
         const initialSession = {
           id: generateId(),
           title: 'New Chat',
@@ -90,6 +93,20 @@ const ChatScreen = () => {
       }
     };
     initApp();
+  }, []);
+
+  // Keyboard show listener to scroll list to bottom
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => {
+      sub.remove();
+    };
   }, []);
 
   // Save sessions whenever updated
@@ -144,7 +161,6 @@ const ChatScreen = () => {
     const remaining = sessions.filter((s) => s.id !== sessionId);
 
     if (remaining.length === 0) {
-      // Create fresh blank session if all deleted
       const freshSession = {
         id: generateId(),
         title: 'New Chat',
@@ -173,18 +189,35 @@ const ChatScreen = () => {
     updateSessionsState(updated);
   };
 
+  // Clear All Sessions in App
+  const handleClearAllSessions = async () => {
+    await clearAllSessionsStorage();
+    const freshSession = {
+      id: generateId(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setSessions([freshSession]);
+    setActiveSessionId(freshSession.id);
+    saveAllSessions([freshSession]);
+    saveActiveSessionId(freshSession.id);
+    setErrorMessage(null);
+  };
+
+  // Save Settings from Settings Modal
+  const handleSaveSettings = async (newSettings) => {
+    if (newSettings.apiKey !== undefined) setApiKey(newSettings.apiKey);
+    if (newSettings.selectedModel !== undefined) setSelectedModel(newSettings.selectedModel);
+    await saveSettings(newSettings);
+  };
+
   // Toggle Dark Mode
   const handleToggleDarkMode = async () => {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
-    await saveSettings({ apiKey, isDarkMode: nextMode });
-  };
-
-  // Save API Key
-  const handleSaveApiKey = async (newKey) => {
-    setApiKey(newKey);
-    await saveSettings({ apiKey: newKey, isDarkMode });
-    setErrorMessage(null);
+    await saveSettings({ isDarkMode: nextMode });
   };
 
   // Send Message
@@ -199,15 +232,13 @@ const ChatScreen = () => {
       timestamp: Date.now(),
     };
 
-    // Auto-generate title for "New Chat" from first message
     let sessionTitle = activeSession?.title || 'New Chat';
     if (messages.length === 0 || sessionTitle === 'New Chat') {
       sessionTitle = userText.length > 28 ? userText.substring(0, 28) + '...' : userText;
     }
 
     const currentMessages = [...messages, userMsg];
-    
-    // Update local state immediately
+
     const updatedSessions = sessions.map((s) => {
       if (s.id === activeSessionId) {
         return {
@@ -225,7 +256,11 @@ const ChatScreen = () => {
     scrollToBottom();
 
     try {
-      const aiResponseText = await sendMessageToGemini(currentMessages, apiKey);
+      const aiResponseText = await sendMessageToGemini(
+        currentMessages,
+        apiKey,
+        selectedModel
+      );
 
       const aiMsg = {
         id: generateId(),
@@ -289,7 +324,6 @@ const ChatScreen = () => {
     setIsLoading(true);
     setErrorMessage(null);
 
-    // Update state to remove trailing response
     const updatedSessions = sessions.map((s) => {
       if (s.id === activeSessionId) {
         return { ...s, messages: historyUpToUser, updatedAt: Date.now() };
@@ -299,7 +333,11 @@ const ChatScreen = () => {
     updateSessionsState(updatedSessions);
 
     try {
-      const aiResponseText = await sendMessageToGemini(historyUpToUser, apiKey);
+      const aiResponseText = await sendMessageToGemini(
+        historyUpToUser,
+        apiKey,
+        selectedModel
+      );
       const aiMsg = {
         id: generateId(),
         sender: 'ai',
@@ -380,12 +418,24 @@ const ChatScreen = () => {
   const lastAiMessageId = [...messages].reverse().find((m) => m.sender === 'ai' && !m.isError)?.id;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={theme.surface} />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.background,
+          paddingTop: Math.max(insets.top, 0),
+        },
+      ]}
+    >
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.surface}
+      />
 
       {/* App Header */}
       <Header
         title={activeSession?.title || 'NextChat'}
+        modelName={selectedModel}
         onOpenSidebar={() => setSidebarVisible(true)}
         onNewChat={handleNewChat}
         isDarkMode={isDarkMode}
@@ -399,7 +449,12 @@ const ChatScreen = () => {
 
       {/* Error Banner */}
       {errorMessage && (
-        <View style={[styles.errorBanner, { backgroundColor: theme.error + '20', borderColor: theme.error }]}>
+        <View
+          style={[
+            styles.errorBanner,
+            { backgroundColor: theme.error + '20', borderColor: theme.error },
+          ]}
+        >
           <Ionicons name="warning" size={18} color={theme.error} />
           <Text style={[styles.errorBannerText, { color: theme.error }]}>{errorMessage}</Text>
           <TouchableOpacity onPress={() => setErrorMessage(null)}>
@@ -408,11 +463,11 @@ const ChatScreen = () => {
         </View>
       )}
 
-      {/* Main Chat Area */}
+      {/* Main Chat Area with smooth keyboard avoiding */}
       <KeyboardAvoidingView
         style={styles.flexOne}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -421,6 +476,8 @@ const ChatScreen = () => {
           onContentSizeChange={scrollToBottom}
           onLayout={scrollToBottom}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           renderItem={({ item }) => (
             <ChatBubble
               message={item}
@@ -465,6 +522,8 @@ const ChatScreen = () => {
         onRenameSession={handleRenameSession}
         onDeleteSession={handleDeleteSession}
         onOpenSettings={() => setSettingsModalVisible(true)}
+        onOpenSearch={() => setSearchModalVisible(true)}
+        onExportChat={handleExportChat}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
         theme={theme}
@@ -483,10 +542,14 @@ const ChatScreen = () => {
         visible={settingsModalVisible}
         onClose={() => setSettingsModalVisible(false)}
         apiKey={apiKey}
-        onSaveApiKey={handleSaveApiKey}
+        selectedModel={selectedModel}
+        isDarkMode={isDarkMode}
+        onSaveSettings={handleSaveSettings}
+        onClearAllSessions={handleClearAllSessions}
+        onToggleDarkMode={handleToggleDarkMode}
         theme={theme}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -516,14 +579,14 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: 20,
+    paddingTop: 28,
     paddingBottom: 16,
   },
   welcomeIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -533,13 +596,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 8,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   welcomeSubtitle: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 8,
   },
 });
 

@@ -7,11 +7,8 @@ import {
   FlatList,
   Modal,
   TextInput,
-  Alert,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatTime } from '../utils/formatters';
 
 const Sidebar = ({
   visible,
@@ -23,6 +20,8 @@ const Sidebar = ({
   onRenameSession,
   onDeleteSession,
   onOpenSettings,
+  onOpenSearch,
+  onExportChat,
   isDarkMode,
   onToggleDarkMode,
   theme,
@@ -40,10 +39,6 @@ const Sidebar = ({
       onRenameSession(sessionId, editTitleInput.trim());
     }
     setEditingSessionId(null);
-  };
-
-  const handleDeleteDirect = (sessionId) => {
-    onDeleteSession(sessionId);
   };
 
   return (
@@ -82,7 +77,7 @@ const Sidebar = ({
               }}
               activeOpacity={0.85}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="add" size={22} color="#FFFFFF" />
               <Text style={styles.newChatBtnText}>New Chat</Text>
             </TouchableOpacity>
           </View>
@@ -95,7 +90,7 @@ const Sidebar = ({
               <View style={styles.emptyHistory}>
                 <Ionicons name="chatbubbles-outline" size={32} color={theme.textMuted} />
                 <Text style={[styles.emptyHistoryText, { color: theme.textSecondary }]}>
-                  No previous conversations yet.
+                  No conversations yet.
                 </Text>
               </View>
             ) : (
@@ -113,14 +108,21 @@ const Sidebar = ({
                         styles.sessionCard,
                         {
                           backgroundColor: isActive ? theme.primaryLight : 'transparent',
-                          borderColor: isActive ? theme.primary + '40' : 'transparent',
+                          borderColor: isActive ? theme.primary + '30' : 'transparent',
                         },
                       ]}
                     >
                       {isEditing ? (
                         <View style={styles.editRow}>
                           <TextInput
-                            style={[styles.renameInput, { color: theme.textPrimary, borderColor: theme.primary }]}
+                            style={[
+                              styles.renameInput,
+                              {
+                                color: theme.textPrimary,
+                                borderColor: theme.primary,
+                                backgroundColor: theme.inputBg,
+                              },
+                            ]}
                             value={editTitleInput}
                             onChangeText={setEditTitleInput}
                             autoFocus
@@ -142,8 +144,8 @@ const Sidebar = ({
                           }}
                         >
                           <Ionicons
-                            name="chatbox-ellipses-outline"
-                            size={18}
+                            name="chatbox-outline"
+                            size={16}
                             color={isActive ? theme.primary : theme.textSecondary}
                           />
                           <View style={styles.sessionTitleContainer}>
@@ -170,15 +172,15 @@ const Sidebar = ({
                             style={styles.actionIcon}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Ionicons name="create-outline" size={16} color={theme.textMuted} />
+                            <Ionicons name="create-outline" size={15} color={theme.textMuted} />
                           </TouchableOpacity>
 
                           <TouchableOpacity
-                            onPress={() => handleDeleteDirect(item.id)}
+                            onPress={() => onDeleteSession(item.id)}
                             style={styles.actionIcon}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Ionicons name="trash-outline" size={16} color={theme.error} />
+                            <Ionicons name="trash-outline" size={15} color={theme.error} />
                           </TouchableOpacity>
                         </View>
                       )}
@@ -189,8 +191,36 @@ const Sidebar = ({
             )}
           </View>
 
-          {/* Footer */}
+          {/* Footer Controls */}
           <View style={[styles.drawerFooter, { borderTopColor: theme.border }]}>
+            {onOpenSearch && (
+              <TouchableOpacity
+                style={styles.footerBtn}
+                onPress={() => {
+                  onClose();
+                  onOpenSearch();
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="search-outline" size={18} color={theme.textPrimary} />
+                <Text style={[styles.footerBtnText, { color: theme.textPrimary }]}>Search Messages</Text>
+              </TouchableOpacity>
+            )}
+
+            {onExportChat && (
+              <TouchableOpacity
+                style={styles.footerBtn}
+                onPress={() => {
+                  onClose();
+                  onExportChat();
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="download-outline" size={18} color={theme.textPrimary} />
+                <Text style={[styles.footerBtnText, { color: theme.textPrimary }]}>Export Conversation</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.footerBtn}
               onPress={onToggleDarkMode}
@@ -231,7 +261,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: '#00000050',
+    backgroundColor: '#00000060',
   },
   drawer: {
     width: '80%',
@@ -247,7 +277,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   drawerHeader: {
-    height: 64,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -260,29 +290,29 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoBadge: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   brandName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   closeBtn: {
     padding: 4,
   },
   newChatSection: {
-    padding: 16,
+    padding: 14,
   },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
-    borderRadius: 22,
+    height: 42,
+    borderRadius: 21,
     gap: 8,
     elevation: 2,
     shadowColor: '#000',
@@ -292,7 +322,7 @@ const styles = StyleSheet.create({
   },
   newChatBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   historySection: {
@@ -340,7 +370,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sessionTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
   },
   sessionActions: {
     flexDirection: 'row',
@@ -369,9 +399,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   drawerFooter: {
-    padding: 16,
+    padding: 14,
     borderTopWidth: 1,
-    gap: 12,
+    gap: 10,
   },
   footerBtn: {
     flexDirection: 'row',
@@ -380,7 +410,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   footerBtnText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
 });

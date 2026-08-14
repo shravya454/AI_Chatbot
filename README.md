@@ -4,6 +4,10 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 
 ---
 
+## Project Links
+
+- **GitHub Repository**: https://github.com/<your-username>/<repo-name>  (replace with your repository URL)
+
 ## Features
 
 ### 💬 Core Chat Experience
@@ -13,9 +17,10 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 - **Avatar & Header**: Custom AI assistant header with online status indicator.
 
 ### 🤖 Gemini AI Integration
-- **Google Gemini API Integration**: Multi-turn conversation context memory powered by `gemini-2.5-flash`.
+- **Google Gemini API Integration**: Multi-turn conversation context memory powered by `gemini-flash-latest` (with automatic fallback to `gemini-3.7-flash` and `gemini-3.1-flash-lite`).
+- **Live Connection Tester**: Built-in "Test Connection" tool in Settings to verify API keys instantly.
 - **Custom & Fallback API Key Support**: In-app settings modal to input personal Gemini API key or use environment key (`EXPO_PUBLIC_GEMINI_API_KEY`).
-- **Error Handling**: Graceful error handling for missing keys, network issues, rate limits, and server timeouts.
+- **Error Handling**: Graceful error handling for missing keys, network issues, rate limits, and server timeouts with automatic multi-model failover.
 - **Empty Message Prevention**: Prevents sending empty or whitespace-only inputs.
 
 ### 💾 Local Chat Persistence
@@ -40,7 +45,7 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 ## Project Folder Structure
 
 ```text
-mobile-ai-chatbot/
+AI_Chat/
 ├── assets/                    # Static assets & icons
 ├── components/                # Reusable UI components
 │   ├── ChatBubble.js          # Chat bubble (Markdown, timestamps, copy, regenerate)
@@ -90,9 +95,12 @@ mobile-ai-chatbot/
 ### 1. Clone & Install Dependencies
 
 ```bash
+git clone https://github.com/<your-username>/<repo-name>.git
 cd AI_Chat
 npm install
 ```
+
+Replace the GitHub URL above with your repository link before running.
 
 ### 2. Configure Gemini API Key
 
