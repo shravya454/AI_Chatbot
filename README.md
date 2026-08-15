@@ -8,6 +8,8 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 
 - **GitHub Repository**: https://github.com/shravya454/AI_Chatbot.git
 
+---
+
 ## Features
 
 ### 💬 Core Chat Experience
@@ -16,6 +18,8 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 - **Timestamps**: Display formatted timestamps for every message.
 - **Avatar & Header**: Custom AI assistant header with online status indicator.
 
+---
+
 ### 🤖 Gemini AI Integration
 - **Google Gemini API Integration**: Multi-turn conversation context memory powered by `gemini-flash-latest` (with automatic fallback to `gemini-3.7-flash` and `gemini-3.1-flash-lite`).
 - **Live Connection Tester**: Built-in "Test Connection" tool in Settings to verify API keys instantly.
@@ -23,15 +27,21 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 - **Error Handling**: Graceful error handling for missing keys, network issues, rate limits, and server timeouts with automatic multi-model failover.
 - **Empty Message Prevention**: Prevents sending empty or whitespace-only inputs.
 
+---
+
 ### 💾 Local Chat Persistence
 - **AsyncStorage Integration**: Save and load conversation history automatically across app sessions.
 - **Clear Chat History**: Easily wipe conversation history with confirmation dialogs.
+
+---
 
 ### 🎨 Modern UI & Customization
 - **Dark Mode / Light Mode**: Dynamic theme switcher with polished color palettes.
 - **Responsive Layout**: Designed for optimal viewing on iOS, Android, and Web screens.
 - **Animated Typing Indicator**: Bouncing dot loading animation when awaiting AI responses.
 - **Suggested Prompt Chips**: One-tap quick suggestion cards to jumpstart conversations.
+
+---
 
 ### 🛠️ Advanced Tools & Controls
 - **Copy AI Response**: One-tap clipboard copy with visual feedback toast.
