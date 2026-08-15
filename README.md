@@ -7,8 +7,6 @@ A modern, feature-rich Mobile AI Chatbot application built using **React Native*
 ## Project Links
 
 - **GitHub Repository**: https://github.com/shravya454/AI_Chatbot.git
-  
-- **Live Demo**: https://ai-chatbot-k7g0.onrender.com
 
 ## Features
 
